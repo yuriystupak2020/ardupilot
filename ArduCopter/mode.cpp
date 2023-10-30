@@ -41,6 +41,10 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             ret = &mode_stabilize;
             break;
 
+        case Mode::Number::MFLY:
+            ret = &mode_mfly;
+            break;
+
         case Mode::Number::ALT_HOLD:
             ret = &mode_althold;
             break;
@@ -174,11 +178,7 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
             ret = &mode_turtle;
             break;
 #endif
-#if MODE_MFLY_ENABLED == ENABLED
-        case Mode::Number::MFLY:
-            ret = &mode_mfly;
-            break;
-#endif
+
 
         default:
             break;

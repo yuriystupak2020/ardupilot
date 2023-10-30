@@ -1046,7 +1046,7 @@ private:
     ModeTurtle mode_turtle;
 #endif
 #if MODE_MFLY_ENABLED == ENABLED
-    ModeMFLY mode_mfly;
+    ModeMfly mode_mfly;
 #endif
 
     // mode.cpp
