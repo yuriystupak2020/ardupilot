@@ -29,7 +29,7 @@
 
 // Common dependencies
 #include <AP_Common/AP_Common.h>            // Common definitions and utility routines for the ArduPilot libraries
-#include <AP_Common/Location.h>             // Library having the implementation of location class         
+#include <AP_Common/Location.h>             // Library having the implementation of location class
 #include <AP_Param/AP_Param.h>              // A system for managing and storing variables that are of general interest to the system.
 #include <StorageManager/StorageManager.h>  // library for Management for hal.storage to allow for backwards compatible mapping of storage offsets to available storage
 
@@ -236,8 +236,6 @@ public:
     friend class ModeTurtle;
 
     friend class _AutoTakeoff;
-
-    friend class PayloadPlace;
 
     Copter(void);
 
@@ -1046,6 +1044,9 @@ private:
 #endif
 #if MODE_TURTLE_ENABLED == ENABLED
     ModeTurtle mode_turtle;
+#endif
+#if MODE_MFLY_ENABLED == ENABLED
+    ModeMFLY mode_mfly;
 #endif
 
     // mode.cpp

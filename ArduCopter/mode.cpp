@@ -25,10 +25,6 @@ Mode::Mode(void) :
     G_Dt(copter.G_Dt)
 { };
 
-#if AC_PAYLOAD_PLACE_ENABLED
-PayloadPlace Mode::payload_place;
-#endif
-
 // return the static controller object corresponding to supplied mode
 Mode *Copter::mode_from_mode_num(const Mode::Number mode)
 {
@@ -176,6 +172,11 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
 #if MODE_TURTLE_ENABLED == ENABLED
         case Mode::Number::TURTLE:
             ret = &mode_turtle;
+            break;
+#endif
+#if MODE_MFLY_ENABLED == ENABLED
+        case Mode::Number::MFLY:
+            ret = &mode_mfly;
             break;
 #endif
 
@@ -567,13 +568,13 @@ void Mode::zero_throttle_and_hold_attitude()
 // handle situations where the vehicle is on the ground waiting for takeoff
 // force_throttle_unlimited should be true in cases where we want to keep the motors spooled up
 // (instead of spooling down to ground idle).  This is required for tradheli's in Guided and Auto
-// where we always want the motor spooled up in Guided or Auto mode.  Tradheli's main rotor stops 
+// where we always want the motor spooled up in Guided or Auto mode.  Tradheli's main rotor stops
 // when spooled down to ground idle.
 // ultimately it forces the motor interlock to be obeyed in auto and guided modes when on the ground.
 void Mode::make_safe_ground_handling(bool force_throttle_unlimited)
 {
     if (force_throttle_unlimited) {
-        // keep rotors turning 
+        // keep rotors turning
         motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
     } else {
         // spool down to ground idle
@@ -582,7 +583,7 @@ void Mode::make_safe_ground_handling(bool force_throttle_unlimited)
 
     // aircraft is landed, integrator terms must be reset regardless of spool state
     attitude_control->reset_rate_controller_I_terms_smoothly();
- 
+
     switch (motors->get_spool_state()) {
     case AP_Motors::SpoolState::SHUT_DOWN:
     case AP_Motors::SpoolState::GROUND_IDLE:

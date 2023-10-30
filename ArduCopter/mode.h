@@ -29,41 +29,7 @@ private:
     Vector3p complete_pos;  // target takeoff position as offset from ekf origin in cm
 };
 
-#if AC_PAYLOAD_PLACE_ENABLED
-class PayloadPlace {
-public:
-    void run();
-    void start_descent();
-    bool verify();
-
-    enum class State : uint8_t {
-        FlyToLocation,
-        Descent_Start,
-        Descent,
-        Release,
-        Releasing,
-        Delay,
-        Ascent_Start,
-        Ascent,
-        Done,
-    };
-
-    // these are set by the Mission code:
-    State state = State::Descent_Start; // records state of payload place
-    float descent_max_cm;
-
-private:
-
-    uint32_t descent_established_time_ms; // milliseconds
-    uint32_t place_start_time_ms; // milliseconds
-    float descent_thrust_level;
-    float descent_start_altitude_cm;
-    float descent_speed_cms;
-};
-#endif
-
 class Mode {
-    friend class PayloadPlace;
 
 public:
 
@@ -95,7 +61,7 @@ public:
         AUTOROTATE =   26,  // Autonomous autorotation
         AUTO_RTL =     27,  // Auto RTL, this is not a true mode, AUTO will report as this mode if entered to perform a DO_LAND_START Landing sequence
         TURTLE =       28,  // Flip over after crash
-
+        MFLY =         29,  // Custom auto-mode
         // Mode number 127 reserved for the "drone show mode" in the Skybrush
         // fork at https://github.com/skybrush-io/ardupilot
     };
@@ -200,11 +166,6 @@ protected:
         land_run_horizontal_control();
         land_run_vertical_control(pause_descent);
     }
-
-#if AC_PAYLOAD_PLACE_ENABLED
-    // payload place flight behaviour:
-    static PayloadPlace payload_place;
-#endif
 
     // run normal or precision landing (if enabled)
     // pause_descent is true if vehicle should not descend
@@ -471,11 +432,10 @@ private:
 
 };
 
+
 class ModeAuto : public Mode {
 
 public:
-    friend class PayloadPlace;  // in case wp_run is accidentally required
-
     // inherit constructor
     using Mode::Mode;
     Number mode_number() const override { return auto_RTL? Number::AUTO_RTL : Number::AUTO; }
@@ -501,9 +461,7 @@ public:
         NAVGUIDED,
         LOITER,
         LOITER_TO_ALT,
-#if AP_MISSION_NAV_PAYLOAD_PLACE_ENABLED
         NAV_PAYLOAD_PLACE,
-#endif
         NAV_SCRIPT_TIME,
         NAV_ATTITUDE_TIME,
     };
@@ -598,6 +556,12 @@ private:
 
     Location loc_from_cmd(const AP_Mission::Mission_Command& cmd, const Location& default_loc) const;
 
+    void payload_place_run();
+    bool payload_place_run_should_run();
+    void payload_place_run_hover();
+    void payload_place_run_descent();
+    void payload_place_run_release();
+
     SubMode _mode = SubMode::TAKEOFF;   // controls which auto controller is run
 
     bool shift_alt_to_current_alt(Location& target_loc) const;
@@ -684,6 +648,16 @@ private:
         Descending = 1
     };
     State state = State::FlyToLocation;
+
+    struct {
+        PayloadPlaceStateType state = PayloadPlaceStateType_Descent_Start; // records state of payload place
+        uint32_t descent_established_time_ms; // milliseconds
+        uint32_t place_start_time_ms; // milliseconds
+        float descent_thrust_level;
+        float descent_start_altitude_cm;
+        float descent_speed_cms;
+        float descent_max_cm;
+    } nav_payload_place;
 
     bool waiting_to_start;  // true if waiting for vehicle to be armed or EKF origin before starting mission
 
@@ -1048,7 +1022,7 @@ public:
     bool limit_check();
 
     bool is_taking_off() const override;
-    
+
     bool set_speed_xy(float speed_xy_cms) override;
     bool set_speed_up(float speed_up_cms) override;
     bool set_speed_down(float speed_down_cms) override;
@@ -1553,6 +1527,33 @@ protected:
 private:
 
 };
+####################################################################################################
+class ModeMFLY : public Mode {
+
+public:
+    // inherit constructor
+    using Mode::Mode;
+    Number mode_number() const override { return Number::MFLY; }
+
+    virtual void run() override;
+
+    bool requires_GPS() const override { return false; }
+    bool has_manual_throttle() const override { return true; }
+    bool allows_arming(AP_Arming::Method method) const override { return true; };
+    bool is_autopilot() const override { return true; }
+    bool allows_save_trim() const override { return true; }
+    bool allows_autotune() const override { return true; }
+    bool allows_flip() const override { return true; }
+
+protected:
+
+    const char *name() const override { return "MFLY"; }
+    const char *name4() const override { return "MF"; }
+
+private:
+
+};
+###################################################################################################
 
 #if FRAME_CONFIG == HELI_FRAME
 class ModeStabilize_Heli : public ModeStabilize {
@@ -1790,7 +1791,7 @@ protected:
 };
 #endif
 
-class ModeZigZag : public Mode {        
+class ModeZigZag : public Mode {
 
 public:
     ModeZigZag(void);
@@ -1931,7 +1932,7 @@ private:
         FLARE,
         TOUCH_DOWN,
         BAIL_OUT } phase_switch;
-        
+
     enum class Navigation_Decision {
         USER_CONTROL_STABILISED,
         STRAIGHT_AHEAD,
